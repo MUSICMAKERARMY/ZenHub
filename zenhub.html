@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Flow: Daily Streak & Routine Tracker</title>
+    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Set up custom configuration for Inter font and theme colors --><script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-mint': '#E0F2F1', // Light mint/teal for background
+                        'secondary-sage': '#99D5C9', // Muted sage/green for accents
+                        'deep-charcoal': '#1C2E4A', // Deep blue-gray for text
+                        'soft-peach': '#FFEDD5', // Soft neutral for highlights
+                        'warning-red': '#B91C1C', // Strong red for warnings
+                        'danger-light': '#FEE2E2', // Light red for section backgrounds
+                        'success-green': '#10B981', // Green for success states
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        .yoga-list-container::-webkit-scrollbar { width: 8px; }
+        .yoga-list-container::-webkit-scrollbar-thumb { background-color: #99D5C9; border-radius: 4px; }
+        .yoga-list-container::-webkit-scrollbar-track { background-color: #E0F2F1; }
+        #poseSearch:focus { outline: none; border-color: #99D5C9; box-shadow: 0 0 0 3px rgba(153, 213, 201, 0.5); }
+        
+        /* Utility to hide/show views */
+        .hidden-view { display: none !important; }
+
+        /* Animation for Streak Bar */
+        .streak-fill {
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Tour Overlay Styles */
+        .highlighted {
+            z-index: 1001; /* Ensure target is above overlay */
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* Creates the dark background except around the element */
+            position: relative;
+        }
+    </style>
+</head>
+<body class="bg-primary-mint font-sans text-deep-charcoal leading-relaxed min-h-screen">
+    
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="fixed inset-0 z-[10000] bg-deep-charcoal flex flex-col items-center justify-center p-4">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-secondary-sage"></div>
+        <p class="mt-4 text-xl font-semibold text-primary-mint">Flowing In...</p>
+    </div>
+
+    <!-- State Management (Replaced Firebase with LocalStorage) -->
+    <script>
+        const STORAGE_KEY = 'zenflow_user_profile_local';
+
+        window.userState = {
+            data: {
+                username: 'Guest',
+                password: '', 
+                streakCount: 0,
+                lastCompletionDate: null,
+                remindersEnabled: false
+            },
+            isReady: false
+        };
+
+        // --- AUTHENTICATION/UI HELPERS (Moved up for scope fix) ---
+
+        function isUserAuthenticated() {
+            // A user is considered authenticated if they have a saved username (not 'Guest') and a password.
+            return window.userState.data.username !== 'Guest' && window.userState.data.password !== '';
+        }
+
+        // Helper to update UI elements based on current user state
+        function updateUIBasedOnUserState() {
+            const isAuth = isUserAuthenticated();
+            const streakCount = window.userState.data.streakCount || 0;
+            const profileBtn = document.getElementById('profileBtn');
+            const profileIcon = document.getElementById('profileIcon');
+            const signUpText = document.getElementById('signUpText');
+            const currentUsernameSpan = document.getElementById('currentUsername');
+
+            if (currentUsernameSpan) {
+                 currentUsernameSpan.textContent = window.userState.data.username || 'Guest';
+            }
+
+            if (!profileBtn) return; // Ensure elements exist
+
+            // --- Dynamic Nav Bar Logic ---
+            profileBtn.classList.remove('rounded-full', 'bg-deep-charcoal', 'hover:bg-secondary-sage', 'rounded-lg', 'bg-secondary-sage', 'hover:bg-deep-charcoal', 'p-2', 'px-3', 'py-1');
+            
+            if (isAuth) {
+                // Logged In: Show icon and streak
+                document.getElementById('streakDisplay').textContent = `🔥 ${streakCount} Days`;
+                document.getElementById('streakDisplay').classList.remove('hidden');
+                profileIcon.classList.remove('hidden');
+                signUpText.classList.add('hidden');
+                profileBtn.classList.add('rounded-full', 'bg-deep-charcoal', 'hover:bg-secondary-sage', 'p-2');
+            } else {
+                // Guest: Hide streak, show "Sign Up" text on button
+                document.getElementById('streakDisplay').classList.add('hidden');
+                profileIcon.classList.add('hidden');
+                signUpText.classList.remove('hidden');
+                profileBtn.classList.add('rounded-lg', 'bg-secondary-sage', 'hover:bg-deep-charcoal', 'px-3', 'py-1');
+            }
+
+            // Profile view specific updates (ensure elements are available before updating)
+            const profileStreakCount = document.getElementById('profileStreakCount');
+            const streakBarFill = document.getElementById('streakBarFill');
+            const reminderToggle = document.getElementById('reminderToggle');
+
+            if (profileStreakCount) profileStreakCount.textContent = streakCount;
+            if (streakBarFill) {
+                // The streak bar is based on achieving 1 day (0/1 or 1/1 progress)
+                streakBarFill.style.width = streakCount > 0 && isStreakBroken() !== 'done' ? '100%' : '0%';
+            }
+            
+            if (reminderToggle) reminderToggle.checked = window.userState.data.remindersEnabled;
+        }
+
+        // --- CORE LOAD/SAVE LOGIC ---
+
+        const loadProfile = () => {
+            try {
+                const storedData = localStorage.getItem(STORAGE_KEY);
+                if (storedData) {
+                    const parsedData = JSON.parse(storedData);
+                    // Merge stored data with defaults to ensure all keys exist
+                    window.userState.data = { ...window.userState.data, ...parsedData };
+                }
+            } catch (error) {
+                console.error("Error loading profile from localStorage:", error);
+                // If corrupted, reset to default guest profile
+                localStorage.removeItem(STORAGE_KEY);
+            }
+            window.userState.isReady = true;
+            updateUIBasedOnUserState();
+            // Resolve immediately as there is no async auth process
+            return Promise.resolve();
+        };
+
+        const updateProfile = (newData) => {
+            // Update local state
+            window.userState.data = { ...window.userState.data, ...newData };
+            
+            // Save to local storage
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(window.userState.data));
+                updateUIBasedOnUserState();
+                console.log("Profile updated successfully in localStorage.");
+                return true;
+            } catch (error) {
+                console.error("Error saving profile to localStorage:", error);
+                // Handle storage full or permission errors gracefully
+                alertMessage("Could not save profile data. Storage is full or unavailable.", 'warning-red');
+                return false;
+            }
+        };
+
+        // Expose functions globally for HTML access
+        window.updateProfile = updateProfile;
+        window.loadProfile = loadProfile;
+
+        // Immediately attempt to load profile state for the rest of the script to use
+        const loadProfilePromise = loadProfile();
+
+    </script>
+    
+    <!-- Modals (Disclaimer, Warning, Auth, Notification, Pose Detail) -->
+    <!-- All modals use max-w-lg or max-w-sm and w-full for responsiveness -->
+    <div id="disclaimerModal" class="fixed inset-0 z-[100] bg-deep-charcoal bg-opacity-95 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full transform scale-95 transition-transform duration-300">
+            <h2 class="text-3xl font-bold mb-4 text-secondary-sage border-b-2 border-secondary-sage/50 pb-2">User Liability Notice</h2>
+            <p class="mb-6 text-deep-charcoal/80 text-base">
+                Please consult a healthcare professional. Participation is at your own risk.
+            </p>
+            <button id="acknowledgeBtn" class="w-full py-3 bg-secondary-sage text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition duration-300 transform hover:scale-[1.01]">
+                I Acknowledge and Proceed
+            </button>
+        </div>
+    </div>
+    
+    <div id="challengingWarningModal" class="fixed inset-0 z-[110] bg-warning-red bg-opacity-95 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full transform scale-95 transition-transform duration-300 border-4 border-warning-red">
+            <h2 class="text-4xl font-extrabold mb-4 text-center text-warning-red border-b-2 border-warning-red/50 pb-2">CRITICAL SAFETY WARNING</h2>
+            <p class="mb-8 text-xl font-extrabold text-center text-warning-red bg-red-50 p-3 rounded-lg border border-red-300">
+                These poses demand advanced physical competency. ANY INJURIES ARE SOLELY THE USER'S RESPONSIBILITY.
+            </p>
+            <button id="challengingAcknowledgeBtn" class="w-full py-3 bg-warning-red text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-300 transform hover:scale-[1.01]">
+                I Understand the Risk and Proceed
+            </button>
+        </div>
+    </div>
+
+    <!-- Authentication/Streak Setup Modal -->
+    <div id="authModal" class="fixed inset-0 z-[120] bg-deep-charcoal bg-opacity-80 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-95 transition-transform duration-300">
+            <h3 class="text-2xl font-bold mb-4 text-secondary-sage text-center">Start Your Streak!</h3>
+            <p class="text-sm text-center text-deep-charcoal/70 mb-4">Create an account to track your progress and keep your daily streak alive.</p>
+            
+            <form id="authForm" class="space-y-4">
+                <input type="text" id="authUsername" placeholder="Enter Username" required class="w-full p-3 rounded-lg border-2 border-secondary-sage/50 focus:border-secondary-sage">
+                <input type="password" id="authPassword" placeholder="Enter Password" required class="w-full p-3 rounded-lg border-2 border-secondary-sage/50 focus:border-secondary-sage">
+                <p id="authError" class="text-warning-red text-sm hidden"></p>
+                <p class="text-xs text-center font-medium text-deep-charcoal/80 mt-2">
+                    Tip: Keeping your daily routine formal helps establish consistency!
+                </p>
+                <button type="submit" class="w-full py-3 bg-secondary-sage text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition">
+                    Sign Up & Submit Profile
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Simulation Modal -->
+    <div id="notificationModal" class="fixed inset-0 z-[130] bg-deep-charcoal bg-opacity-80 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-95 transition-transform duration-300">
+            <h3 class="text-2xl font-bold mb-4 text-warning-red text-center">Enable Reminders?</h3>
+            <p class="text-sm text-deep-charcoal/70 mb-4">
+                Would you like to receive daily reminders to maintain your streak? (This is simulated, as real device settings cannot be accessed.)
+            </p>
+            <p class="text-xs text-warning-red mb-6">
+                *Note: This preference is saved locally to your browser.
+            </p>
+            <div class="flex space-x-4">
+                <button onclick="handleNotificationChoice(true)" class="flex-1 py-3 bg-secondary-sage text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition">
+                    Yes, Enable Reminders
+                </button>
+                <button onclick="handleNotificationChoice(false)" class="flex-1 py-3 bg-soft-peach text-deep-charcoal font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition">
+                    No, Thanks
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pose Detail Modal -->
+    <div id="poseDetailModal" class="fixed inset-0 z-[120] bg-deep-charcoal bg-opacity-80 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full transform scale-95 transition-transform duration-300 overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-start border-b-2 border-secondary-sage/50 pb-3 mb-4">
+                <h3 id="modalTitle" class="text-3xl font-bold text-deep-charcoal">Pose Name</h3>
+                <button id="closePoseModalBtn" class="text-gray-500 hover:text-gray-900 transition text-2xl font-light leading-none transform hover:scale-110">&times;</button>
+            </div>
+            <p id="modalSanskrit" class="text-lg font-medium text-secondary-sage mb-2"></p>
+            <p id="modalDifficulty" class="text-sm font-semibold mb-4"></p>
+            <img id="modalImage" src="" alt="Image of the selected yoga pose" class="w-full h-40 object-cover rounded-lg mb-4 border border-gray-200">
+            <div id="modalContent" class="space-y-4">
+                <p class="font-bold text-deep-charcoal">Benefits:</p>
+                <p id="modalBenefits" class="text-deep-charcoal/80 text-base mb-4"></p>
+                <p class="font-bold text-deep-charcoal">Steps:</p>
+                <ul id="modalStepsList" class="list-decimal list-inside ml-4 text-deep-charcoal/80 text-sm space-y-1"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tour Overlay and Tooltip (Simplified: Removed buttons for auto-advance) -->
+    <div id="tourOverlay" class="fixed inset-0 z-[1000] bg-transparent pointer-events-none opacity-0 transition-opacity">
+        <div id="tourTooltip" class="absolute bg-white text-deep-charcoal p-4 rounded-xl shadow-2xl max-w-xs transform -translate-x-1/2 -translate-y-1/2 border-4 border-secondary-sage transition-all duration-300 hidden">
+            <p id="tourMessage" class="mb-1 font-medium"></p>
+            <p class="text-xs text-secondary-sage">Auto-advancing...</p>
+        </div>
+    </div>
+
+
+    <!-- Global App Container (Hidden initially by JS/CSS) -->
+    <div id="appContainer" style="display: none;" class="min-h-screen flex flex-col">
+        
+        <!-- Navigation Bar -->
+        <nav id="mainNav" class="sticky top-0 z-50 bg-white bg-opacity-95 shadow-lg backdrop-blur-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <a href="#" onclick="showView('homeView')" class="text-2xl font-extrabold text-secondary-sage tracking-wider">Zen Flow</a>
+                    <div class="flex space-x-2 md:space-x-4 items-center" id="navActions">
+                        <span id="streakDisplay" class="text-lg font-bold text-warning-red bg-danger-light py-1 px-3 rounded-full hidden">🔥 0 Days</span>
+                        
+                        <!-- Profile/Sign Up Button - DYNAMIC CONTENT -->
+                        <button id="profileBtn" onclick="handleProfileClick()" class="p-2 rounded-full bg-deep-charcoal text-white hover:bg-secondary-sage transition duration-150 transform hover:scale-110 flex items-center">
+                            <span id="profileIcon">
+                                <!-- User Icon SVG -->
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </span>
+                            <span id="signUpText" class="hidden text-sm font-semibold px-1">Sign Up</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content Area (Dynamic Views) -->
+        <main class="flex-grow py-8 px-2 sm:px-6 lg:px-8"> <!-- Reduced px-4 to px-2 for small screen safety -->
+
+            <!-- 1. HOME VIEW (Default Pose List) -->
+            <div id="homeView" class="max-w-4xl mx-auto">
+                <header class="text-center mb-10">
+                    <h1 class="text-4xl font-extrabold text-deep-charcoal mb-2">Welcome, <span id="currentUsername">Guest</span>!</h1>
+                    <p class="text-lg text-deep-charcoal/80">Select a pose or start your daily routine.</p>
+                </header>
+                
+                <!-- New Routine Start Button for Tour -->
+                <section class="mb-8 p-6 bg-secondary-sage/20 rounded-xl shadow-lg border border-secondary-sage/50 text-center">
+                    <h2 class="text-2xl font-bold text-deep-charcoal mb-3">Ready to Begin?</h2>
+                    <p class="text-deep-charcoal/80 mb-4">Start your daily session now to build a lasting habit and maintain your streak.</p>
+                    <button onclick="showView('routineSetupView')" id="startRoutineButton" class="px-8 py-3 bg-secondary-sage text-white font-extrabold rounded-full shadow-lg hover:bg-secondary-sage/80 transition transform hover:scale-[1.02]">
+                        Start Daily Routine
+                    </button>
+                </section>
+
+
+                <section id="yoga" class="bg-danger-light p-4 sm:p-8 rounded-2xl shadow-2xl border-4 border-secondary-sage">
+                    <h2 class="text-3xl font-extrabold mb-6 text-center text-secondary-sage pb-2 inline-block mx-auto border-b-4 border-secondary-sage/50">
+                        YOGA POSES: EASY TO HARDEST
+                    </h2>
+                    
+                    <div class="mb-6 max-w-lg mx-auto">
+                        <input type="text" id="poseSearch" placeholder="Search any pose (e.g., Cobra, Headstand)" 
+                            class="w-full p-3 rounded-lg border-2 border-secondary-sage/50 transition duration-300 focus:ring-secondary-sage focus:border-secondary-sage text-deep-charcoal">
+                    </div>
+
+                    <div id="asanaList" class="yoga-list-container h-[50vh] overflow-y-scroll bg-white p-4 rounded-xl shadow-inner space-y-2 border-t-4 border-secondary-sage">
+                        <!-- Poses inserted by JavaScript -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- 2. ROUTINE SETUP VIEW (unchanged) -->
+            <div id="routineSetupView" class="hidden-view max-w-xl mx-auto bg-white p-6 rounded-xl shadow-2xl border-4 border-secondary-sage">
+                <h2 class="text-3xl font-bold mb-6 text-center text-secondary-sage">Design Your Daily Routine</h2>
+
+                <div class="space-y-6">
+                    <!-- Timer Setup -->
+                    <div class="border p-4 rounded-lg">
+                        <label for="routineTime" class="block text-lg font-semibold mb-2">1. Set Duration (Minimum 5 minutes)</label>
+                        <input type="number" id="routineTime" value="5" min="5" class="w-full p-3 rounded-lg border-2 border-deep-charcoal/30 focus:border-success-green" required>
+                        <p class="text-xs text-deep-charcoal/60 mt-1">Time must be in minutes.</p>
+                    </div>
+
+                    <!-- Pose Selection -->
+                    <div class="border p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">2. Select Poses (Minimum 5 poses)</h3>
+                        <p class="text-sm text-warning-red mb-2">Selected: <span id="poseCount">0</span>/5 minimum</p>
+                        <div id="poseSelectionList" class="h-40 overflow-y-scroll border p-2 rounded-lg bg-soft-peach space-y-1">
+                            <!-- All Poses for Selection -->
+                        </div>
+                    </div>
+
+                    <button id="startRoutineBtn" onclick="startRoutine()" class="w-full py-3 bg-success-green text-white font-semibold rounded-lg shadow-lg hover:bg-opacity-80 transition disabled:opacity-50" disabled>
+                        Start Routine & Keep Your Daily Streak Going!
+                    </button>
+                    <button onclick="showView('homeView')" class="w-full py-2 text-sm text-deep-charcoal/70 hover:underline transition">
+                        Cancel and Go Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. TIMER VIEW (Active Routine) (unchanged) -->
+            <div id="timerView" class="hidden-view max-w-lg mx-auto text-center bg-white p-6 rounded-xl shadow-2xl border-4 border-warning-red">
+                <h2 class="text-3xl font-bold mb-6 text-warning-red">Routine In Progress</h2>
+
+                <!-- Timer Display -->
+                <div class="bg-deep-charcoal text-white p-4 rounded-lg mb-4">
+                    <p class="text-sm font-light">Time Remaining:</p>
+                    <h3 id="timerDisplay" class="text-5xl font-extrabold">00:00</h3>
+                </div>
+
+                <!-- Pose Info -->
+                <div class="border border-secondary-sage p-4 rounded-lg mb-6">
+                    <p class="text-sm font-semibold text-secondary-sage">Current Pose: <span id="currentPoseName"></span></p>
+                    <p class="text-xs text-deep-charcoal/70">Benefits: <span id="currentPoseBenefits"></span></p>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="flex flex-col space-y-4">
+                    <button id="addTimeBtn" onclick="addTime()" class="py-2 bg-soft-peach text-deep-charcoal font-semibold rounded-lg hover:bg-soft-peach/70 transition">
+                        +1 Minute (Current: <span id="routineTimeMinutes"></span> min)
+                    </button>
+                    <button id="doneRoutineBtn" onclick="completeRoutine()" class="py-3 bg-warning-red text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 transition disabled:opacity-50" disabled>
+                        DONE (Time Must Finish)
+                    </button>
+                    <button onclick="showView('homeView')" class="w-full py-2 text-sm text-deep-charcoal/70 hover:underline transition">
+                        Cancel Routine (Streak will not update)
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. PROFILE & SETTINGS VIEW (unchanged) -->
+            <div id="profileView" class="hidden-view max-w-xl mx-auto bg-white p-6 rounded-xl shadow-2xl border-4 border-deep-charcoal">
+                <h2 class="text-3xl font-bold mb-6 text-center text-deep-charcoal">My Profile</h2>
+                
+                <!-- Streak Bar -->
+                <div class="mb-6 border-b pb-4">
+                    <h3 class="text-xl font-semibold mb-2">Daily Streak: <span id="profileStreakCount" class="text-warning-red">0</span> Days 🔥</h3>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="streakBarFill" class="h-2.5 rounded-full bg-warning-red streak-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="text-xs text-deep-charcoal/70 mt-1">Check every day to keep your streak going!</p>
+                </div>
+                
+                <!-- Settings: Change Credentials -->
+                <h3 class="text-xl font-semibold mb-4 text-secondary-sage">Account Settings</h3>
+                <form id="changeCredentialsForm" class="space-y-4 p-4 border rounded-lg bg-soft-peach">
+                    <p class="font-medium text-sm">Change Username or Password</p>
+                    <input type="text" id="oldUsername" placeholder="Confirm Current Username" required class="w-full p-3 rounded-lg border-2 border-deep-charcoal/30">
+                    <input type="password" id="oldPassword" placeholder="Confirm Current Password" required class="w-full p-3 rounded-lg border-2 border-deep-charcoal/30">
+                    <p id="confirmError" class="text-warning-red text-sm hidden"></p>
+                    <div id="newCredentialsFields" class="space-y-4 hidden">
+                        <input type="text" id="newUsername" placeholder="New Username" required class="w-full p-3 rounded-lg border-2 border-deep-charcoal/30">
+                        <input type="password" id="newPassword" placeholder="New Password" required class="w-full p-3 rounded-lg border-2 border-deep-charcoal/30">
+                        <button type="button" onclick="saveNewCredentials()" class="w-full py-3 bg-success-green text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition">
+                            Save Changes
+                        </button>
+                    </div>
+                    <button type="button" onclick="confirmOldCredentials()" class="w-full py-3 bg-deep-charcoal text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition" id="confirmCredentialsBtn">
+                        Confirm Credentials
+                    </button>
+                </form>
+
+                <!-- Reminder Settings -->
+                <div class="mt-6 p-4 border rounded-lg">
+                    <label class="flex items-center justify-between text-lg font-semibold cursor-pointer">
+                        Daily Reminders
+                        <input type="checkbox" id="reminderToggle" onchange="toggleReminders(this.checked)" class="form-checkbox h-6 w-6 text-secondary-sage rounded-full">
+                    </label>
+                    <p class="text-xs text-deep-charcoal/70 mt-1">If enabled, you will receive reminders (simulated) if your streak is not complete.</p>
+                </div>
+
+                <button onclick="showView('homeView')" class="w-full py-2 mt-6 text-sm text-deep-charcoal/70 hover:underline transition">
+                    Back to Home
+                </button>
+            </div>
+            
+        </main>
+
+        <script>
+            const asanas = [
+                { name: "Savasana", sanskrit: "Corpse Pose", benefits: "Deep rest, relieves stress, calms mind.", difficulty: "EASY", steps: ["Lie flat on your back, palms facing up.", "Close your eyes and relax your entire body."] },
+                { name: "Balasana", sanskrit: "Child's Pose", benefits: "Calms brain, relieves stress and fatigue.", difficulty: "EASY", steps: ["Kneel on the floor, big toes touching.", "Fold forward, resting your forehead on the floor."] },
+                { name: "Tadasana", sanskrit: "Mountain Pose", benefits: "Improves posture and stability, strengthens thighs.", difficulty: "EASY", steps: ["Stand with feet together, distributing your weight evenly.", "Engage your thighs and lift through the crown of your head."] },
+                { name: "Vajrāsana", sanskrit: "Thunderbolt Pose", benefits: "Aids digestion, calms the mind.", difficulty: "EASY", steps: ["Kneel and sit on your heels.", "Keep your spine straight and hands resting lightly on your thighs."] },
+                { name: "Setu Bandhasana", sanskrit: "Bridge Pose", benefits: "Stretches chest and spine, alleviates stress.", difficulty: "EASY", steps: ["Lie on your back, knees bent, feet flat.", "Press feet and arms into floor and lift hips toward the ceiling."] },
+                { name: "Bhujangasana", sanskrit: "Cobra Pose", benefits: "Strengthens the spine, stretches the chest.", difficulty: "EASY", steps: ["Lie face down with hands under your shoulders.", "Inhale to lift your chest off the floor."] },
+                { name: "Virabhadrasana I", sanskrit: "Warrior I", benefits: "Strengthens shoulders, arms, legs, and back muscles.", difficulty: "EASY", steps: ["Step right foot back, bend front knee.", "Square hips forward and lift arms overhead."] },
+                { name: "Uttanasana", sanskrit: "Standing Forward Fold", benefits: "Stretches hamstrings, calves, and hips.", difficulty: "EASY", steps: ["From standing, fold forward at the hips.", "Relax your head and neck."] },
+                { name: "Sukhasana", sanskrit: "Easy Pose", benefits: "Simple seated posture that opens the hips and lengthens the spine.", difficulty: "EASY", steps: ["Sit cross-legged on the floor (or a cushion).", "Ensure your spine is tall and your hands are relaxed."] },
+                { name: "Vrikshasana", sanskrit: "Tree Pose", benefits: "Improves balance and focus.", difficulty: "MODERATE", steps: ["Shift weight to one foot, place other foot on inner thigh.", "Bring hands to prayer at the heart."] },
+                { name: "Trikoṇāsana", sanskrit: "Triangle Pose", benefits: "Stretches hips, groin, hamstrings, and calves.", difficulty: "MODERATE", steps: ["Stand wide, turn right foot out 90 degrees.", "Reach right hand forward, drop to shin/ankle, extend left arm up."] },
+                { name: "Adho Mukha Svanasana", sanskrit: "Downward-Facing Dog", benefits: "Stretches shoulders and hamstrings, calms the brain.", difficulty: "MODERATE", steps: ["Start on hands and knees. Lift hips up and back into inverted 'V'."] },
+                { name: "Utkatasana", sanskrit: "Chair Pose", benefits: "Intensely strengthens thighs, calves, and ankles.", difficulty: "MODERATE", steps: ["Bend knees as if sitting in a chair.", "Lift arms overhead, parallel to the ears."] },
+                { name: "Sarvāngāsana", sanskrit: "Shoulderstand", benefits: "Calms the nervous system, stretches the neck and shoulders (Inversion).", difficulty: "HARD", steps: ["Lie on back, lift legs and hips off floor.", "Support back with hands, stack body over shoulders. (Supervision advised)"] },
+                { name: "Urdhva Dhanurasana", sanskrit: "Wheel Pose", benefits: "Strengthens arms, legs, and spine intensely.", difficulty: "HARD", steps: ["Lie on back, hands by ears. Press into feet and hands, lift hips and head off the floor. (Requires warm-up)"] },
+                { name: "Bakasana", sanskrit: "Crane Pose", benefits: "Strengthens arms, wrists, and abdominal organs.", difficulty: "HARD", steps: ["Squat, hands shoulder-width apart. Place knees high on upper arms.", "Shift weight forward, lift feet. (Advanced balance)"] },
+                { name: "Pincha Mayūrāsana", sanskrit: "Feathered Peacock Pose", benefits: "Highly strengthens shoulders, forearms, and core.", difficulty: "HARDER", steps: ["Forearms on mat, kick up gently.", "Engage core to lift hips over shoulders. (Requires stability)"] },
+                { name: "Eka Pada Rajakapotasana", sanskrit: "One-Legged King Pigeon", benefits: "Very deep hip opener, stimulates abdominal organs.", difficulty: "HARDER", steps: ["Bring one knee forward behind wrist.", "Lower hips, extend other leg back. (Use support)"] },
+                { name: "Natarajasana", sanskrit: "Dancer's Pose", benefits: "Standing backbend and balance pose, stretches shoulders and chest.", difficulty: "HARDER", steps: ["Hold inner arch of one foot, kick back and up, reach other arm forward."] },
+                { name: "Salamba Śīrṣāsana", sanskrit: "Supported Headstand", benefits: "Calms the brain, improves blood flow to the head. (Highest risk inversion).", difficulty: "HARDEST", steps: ["Forearms on floor, interlace fingers. Place crown of head.", "Walk feet in, lift feet with core strength. (Use wall/spotter)"] },
+                { name: "Hanumanasana", sanskrit: "Monkey God Pose (Full Splits)", benefits: "Supreme hip and hamstring flexibility pose.", difficulty: "HARDEST", steps: ["From low lunge, slowly slide front foot forward and back knee backward.", "Only go as far as pain-free stretch. (Years of practice needed)"] },
+                { name: "Tittibhasana", sanskrit: "Firefly Pose", benefits: "Advanced arm balance that builds strength in the inner thighs and core.", difficulty: "HARDEST", steps: ["Wiggle shoulders under thighs. Place hands wide.", "Shift weight back, lift legs, straightening them out. (Supreme strength needed)"] },
+            ];
+
+            let hasAcknowledgedChallenging = false; 
+            const difficultyOrder = ["EASY", "MODERATE", "HARD", "HARDER", "HARDEST"];
+            
+            // App State Variables
+            let currentView = 'homeView';
+            let routineTimer = null;
+            let routineSeconds = 0;
+            let routineTotalDuration = 0;
+            let selectedRoutinePoses = [];
+            let tourStep = 0; // Tracks the current step of the tour
+
+            // --- AUTHENTICATION STATE CHECK ---
+
+            // The functions isUserAuthenticated and updateUIBasedOnUserState were moved to the first script block.
+            
+            function handleProfileClick() {
+                if (isUserAuthenticated()) {
+                    showView('profileView');
+                } else {
+                    // Show the auth modal for signup/login when the user clicks the "Sign Up" button.
+                    showAuthModal();
+                }
+            }
+
+
+            // --- VIEW MANAGEMENT ---
+            function showView(viewId, isSetupButton = false) {
+                const views = ['homeView', 'routineSetupView', 'timerView', 'profileView'];
+                views.forEach(id => {
+                    const view = document.getElementById(id);
+                    if (view) {
+                        view.classList.toggle('hidden-view', id !== viewId);
+                    }
+                });
+                currentView = viewId;
+                
+                if (viewId === 'routineSetupView' && !isSetupButton) {
+                    // Force login prompt if not authenticated when trying to access routine
+                    if (!isUserAuthenticated()) {
+                         showAuthModal();
+                         return;
+                    } 
+                    renderPoseSelection();
+                } else if (viewId === 'profileView') {
+                    updateProfileView();
+                }
+            }
+            
+            // --- AUTHENTICATION / STREAK LOGIC (Updated to use localStorage) ---
+            function showAuthModal() {
+                const modal = document.getElementById('authModal');
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.querySelector('div').classList.remove('scale-95');
+                // Ensure the form state is correct for a new attempt
+                document.getElementById('authError').classList.add('hidden');
+            }
+
+            function hideAuthModal() {
+                const modal = document.getElementById('authModal');
+                modal.classList.add('opacity-0');
+                modal.querySelector('div').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('pointer-events-none'), 300);
+            }
+
+            document.getElementById('authForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = document.getElementById('authUsername').value;
+                const password = document.getElementById('authPassword').value;
+                const errorDisplay = document.getElementById('authError');
+                errorDisplay.classList.add('hidden');
+                
+                const wasGuest = !isUserAuthenticated();
+
+                // Validation
+                if (username.length < 3 || password.length < 6) {
+                    errorDisplay.textContent = "Username must be at least 3 characters and password at least 6.";
+                    errorDisplay.classList.remove('hidden');
+                    return;
+                }
+
+                if (wasGuest) {
+                    // Case 1: User is a Guest - Perform Sign Up/Save
+                    const success = updateProfile({ 
+                        username: username, 
+                        password: password, 
+                        streakCount: 0, 
+                        lastCompletionDate: null 
+                    });
+
+                    if (success) {
+                        alertMessage("Profile saved! You are now logged in.", 'success-green');
+                        hideAuthModal(); 
+                        setTimeout(startStreakTour, 500); 
+                    } else {
+                        errorDisplay.textContent = "Error saving profile locally. Try clearing browser storage.";
+                        errorDisplay.classList.remove('hidden');
+                    }
+                    
+                } else {
+                    // Case 2: User is already logged in - Simulate Login/Confirmation
+                    if (username === window.userState.data.username && password === window.userState.data.password) {
+                        alertMessage(`Welcome back, ${username}!`, 'success-green');
+                        hideAuthModal();
+                        // If they were trying to access routine, let them proceed
+                        if (currentView !== 'profileView' && document.getElementById('routineSetupView').classList.contains('hidden-view')) {
+                            showView('routineSetupView', true);
+                        }
+                    } else {
+                        errorDisplay.textContent = "Incorrect username or password.";
+                        errorDisplay.classList.remove('hidden');
+                    }
+                }
+            });
+
+            function isStreakBroken() {
+                const lastDateStr = window.userState.data.lastCompletionDate;
+                if (!lastDateStr) return 'new'; // New streak
+                
+                const lastDate = new Date(lastDateStr);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+
+                const lastDay = new Date(lastDate);
+                lastDay.setHours(0, 0, 0, 0);
+                
+                if (lastDay.getTime() === today.getTime()) {
+                    return 'done'; // Already done today
+                } else if (lastDay.getTime() === yesterday.getTime()) {
+                    return 'active'; // Ready to continue the streak
+                } else {
+                    return 'broken'; // Must reset
+                }
+            }
+
+            function updateStreak() {
+                // Ensure streak only updates once per day
+                if (isStreakBroken() === 'done') {
+                    alertMessage(`Already done today! Your ${window.userState.data.streakCount}-day streak is secured.`, 'secondary-sage');
+                    return;
+                }
+
+                const streakStatus = isStreakBroken();
+                let newStreak = window.userState.data.streakCount || 0;
+                let message = "";
+
+                if (streakStatus === 'active') {
+                    newStreak += 1;
+                    message = `Amazing! Your streak is now ${newStreak} days!`;
+                } else if (streakStatus === 'broken' || streakStatus === 'new') {
+                    newStreak = 1;
+                    message = `New streak started! Your streak is 1 day.`;
+                } 
+                
+                const todayIso = new Date().toISOString().split('T')[0];
+
+                updateProfile({ 
+                    streakCount: newStreak, 
+                    lastCompletionDate: todayIso 
+                });
+
+                alertMessage(message, 'success-green');
+            }
+            
+            // --- TOUR LOGIC (AUTO-ADVANCE) ---
+            const tourSteps = [
+                {
+                    targetId: 'startRoutineButton',
+                    message: "Welcome! To maintain your daily streak, you must complete a routine. Click here to **Start Daily Routine**.",
+                    position: 'bottom', // Tooltip appears below the target
+                },
+                {
+                    targetId: 'navActions', // Targets the entire right side of the nav bar (streak + profile)
+                    message: "This area shows your progress and allows you to access your profile settings.",
+                    position: 'left', // Tooltip appears to the left of the target
+                }
+            ];
+
+            function getElementPosition(element) {
+                const rect = element.getBoundingClientRect();
+                return {
+                    top: rect.top + window.scrollY,
+                    left: rect.left + window.scrollX,
+                    width: rect.width,
+                    height: rect.height
+                };
+            }
+
+            function showTooltip(target, message, position) {
+                const tooltip = document.getElementById('tourTooltip');
+                const rect = getElementPosition(target);
+                
+                tooltip.classList.remove('hidden');
+                document.getElementById('tourMessage').textContent = message;
+
+                let top = 0;
+                let left = 0;
+
+                // Center logic based on position
+                if (position === 'bottom') {
+                    top = rect.top + rect.height + 20;
+                    left = rect.left + rect.width / 2;
+                    tooltip.style.transform = 'translateX(-50%)'; // Center horizontally
+                } else if (position === 'left') {
+                    top = rect.top + rect.height / 2;
+                    left = rect.left - 20;
+                    tooltip.style.transform = 'translate(-100%, -50%)'; // Position left of target, center vertically
+                } else { // Default to bottom
+                    top = rect.top + rect.height + 20;
+                    left = rect.left + rect.width / 2;
+                    tooltip.style.transform = 'translateX(-50%)';
+                }
+
+                tooltip.style.top = `${top}px`;
+                tooltip.style.left = `${left}px`;
+            }
+
+            function hideTooltip() {
+                document.getElementById('tourTooltip').classList.add('hidden');
+                document.getElementById('tourOverlay').classList.add('opacity-0', 'pointer-events-none');
+                
+                // Clear highlight from final step
+                const finalTarget = tourSteps[tourStep - 1];
+                if (finalTarget) {
+                    const finalElement = document.getElementById(finalTarget.targetId);
+                    if (finalElement) finalElement.classList.remove('highlighted');
+                }
+            }
+
+            function handleTourStep() {
+                
+                // Clear highlight from previous step
+                const oldTarget = tourSteps[tourStep - 1];
+                if (oldTarget) {
+                    const oldElement = document.getElementById(oldTarget.targetId);
+                    if (oldElement) oldElement.classList.remove('highlighted');
+                }
+
+                if (tourStep < tourSteps.length) {
+                    const step = tourSteps[tourStep];
+                    const targetElement = document.getElementById(step.targetId);
+
+                    if (targetElement) {
+                        targetElement.classList.add('highlighted');
+                        showTooltip(targetElement, step.message, step.position);
+                        
+                        const nextStepTime = tourStep === tourSteps.length - 1 ? 4000 : 3000; // Longer on final step
+                        setTimeout(() => {
+                            handleTourStep(); // Recursive call to advance
+                        }, nextStepTime);
+                    }
+                    tourStep++;
+                } else {
+                    // Tour finished
+                    hideTooltip();
+                }
+            }
+
+            function startStreakTour() {
+                if (!isUserAuthenticated() || window.userState.data.streakCount !== 0) {
+                    // Only start tour if newly registered and on home screen
+                    return;
+                }
+                tourStep = 0; // Reset tour step
+                document.getElementById('tourOverlay').classList.remove('opacity-0', 'pointer-events-none');
+                
+                // Start the first step
+                handleTourStep(); 
+            }
+
+
+            // --- ROUTINE SETUP VIEW LOGIC (unchanged) ---
+
+            function renderPoseSelection() {
+                const list = document.getElementById('poseSelectionList');
+                list.innerHTML = '';
+                selectedRoutinePoses = []; // Reset list
+
+                asanas.forEach(asana => {
+                    const item = document.createElement('div');
+                    item.className = `p-2 cursor-pointer border-b hover:bg-secondary-sage/30 flex justify-between items-center text-sm`;
+                    item.innerHTML = `
+                        <span>${asana.name} <span class="text-xs text-deep-charcoal/60">(${asana.difficulty})</span></span>
+                        <button data-pose-name="${asana.name}" onclick="togglePoseSelection(event, '${asana.name}')" class="text-white bg-secondary-sage px-2 py-1 rounded text-xs hover:bg-deep-charcoal transition">Add</button>
+                    `;
+                    list.appendChild(item);
+                });
+                updateRoutineStatus();
+            }
+
+            function togglePoseSelection(event, poseName) {
+                event.stopPropagation();
+                const pose = asanas.find(a => a.name === poseName);
+                const button = event.target;
+                const index = selectedRoutinePoses.findIndex(p => p.name === poseName);
+
+                if (index === -1) {
+                    selectedRoutinePoses.push(pose);
+                    button.textContent = 'Remove';
+                    button.classList.remove('bg-secondary-sage');
+                    button.classList.add('bg-warning-red');
+                } else {
+                    selectedRoutinePoses.splice(index, 1);
+                    button.textContent = 'Add';
+                    button.classList.remove('bg-warning-red');
+                    button.classList.add('bg-secondary-sage');
+                }
+                updateRoutineStatus();
+            }
+
+            function updateRoutineStatus() {
+                const count = selectedRoutinePoses.length;
+                document.getElementById('poseCount').textContent = count;
+                const startBtn = document.getElementById('startRoutineBtn');
+                
+                if (count >= 5) {
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Start Routine & Keep Your Daily Streak Going!';
+                } else {
+                    startBtn.disabled = true;
+                    startBtn.textContent = `Select ${5 - count} more pose(s) to begin`;
+                }
+            }
+            
+            // --- TIMER VIEW LOGIC (unchanged) ---
+
+            function startRoutine() {
+                if (!isUserAuthenticated()) {
+                    showAuthModal();
+                    return;
+                }
+                const timeInput = document.getElementById('routineTime').value;
+                const minutes = parseInt(timeInput, 10);
+
+                if (minutes < 5 || selectedRoutinePoses.length < 5) {
+                    alertMessage("Routine requires minimum 5 minutes and 5 poses.", 'warning-red');
+                    return;
+                }
+
+                routineTotalDuration = minutes * 60;
+                routineSeconds = routineTotalDuration;
+
+                document.getElementById('routineTimeMinutes').textContent = minutes;
+                document.getElementById('doneRoutineBtn').disabled = true;
+
+                showView('timerView');
+                updateTimerDisplay();
+                updateCurrentPose();
+
+                if (routineTimer) clearInterval(routineTimer);
+                routineTimer = setInterval(tickTimer, 1000);
+            }
+
+            function addTime() {
+                const newDuration = (routineTotalDuration / 60) + 1;
+                routineTotalDuration = newDuration * 60;
+                routineSeconds += 60;
+                document.getElementById('routineTimeMinutes').textContent = newDuration;
+                updateTimerDisplay();
+            }
+
+            function updateTimerDisplay() {
+                const minutes = Math.floor(routineSeconds / 60);
+                const seconds = routineSeconds % 60;
+                const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                document.getElementById('timerDisplay').textContent = display;
+            }
+
+            function updateCurrentPose() {
+                // Determine which pose to display based on progress
+                if (selectedRoutinePoses.length === 0) return;
+                
+                const timeElapsed = routineTotalDuration - routineSeconds;
+                const timePerPose = routineTotalDuration / selectedRoutinePoses.length;
+                const poseIndex = Math.floor(timeElapsed / timePerPose);
+                
+                const currentPose = selectedRoutinePoses[Math.min(poseIndex, selectedRoutinePoses.length - 1)];
+
+                document.getElementById('currentPoseName').textContent = currentPose.name;
+                document.getElementById('currentPoseBenefits').textContent = currentPose.benefits;
+            }
+
+            function tickTimer() {
+                if (routineSeconds > 0) {
+                    routineSeconds--;
+                    updateTimerDisplay();
+                    updateCurrentPose();
+                } else {
+                    clearInterval(routineTimer);
+                    document.getElementById('timerDisplay').textContent = "00:00";
+                    document.getElementById('doneRoutineBtn').disabled = false;
+                    alertMessage("Routine time completed! Press DONE.", 'success-green');
+                }
+            }
+
+            function completeRoutine() {
+                updateStreak();
+                clearInterval(routineTimer);
+                showNotificationModal();
+            }
+
+            // --- NOTIFICATION SIMULATION LOGIC (unchanged) ---
+            function showNotificationModal() {
+                const modal = document.getElementById('notificationModal');
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modal.querySelector('div').classList.remove('scale-95');
+            }
+
+            function hideNotificationModal() {
+                const modal = document.getElementById('notificationModal');
+                modal.classList.add('opacity-0');
+                modal.querySelector('div').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('pointer-events-none'), 300);
+            }
+            
+            function handleNotificationChoice(enable) {
+                hideNotificationModal();
+                updateProfile({ remindersEnabled: enable });
+                if (enable) {
+                    alertMessage("Reminders preference saved!", 'secondary-sage');
+                } else {
+                    alertMessage("Reminders disabled.", 'secondary-sage');
+                }
+                showView('homeView');
+            }
+
+            // --- PROFILE & SETTINGS LOGIC (Updated to use localStorage) ---
+            function updateProfileView() {
+                const data = window.userState.data;
+                const streakCount = data.streakCount || 0;
+                
+                document.getElementById('profileStreakCount').textContent = streakCount;
+                document.getElementById('reminderToggle').checked = data.remindersEnabled;
+                
+                // Reset credential change form state
+                document.getElementById('confirmError').classList.add('hidden');
+                document.getElementById('confirmError').classList.remove('text-success-green');
+                document.getElementById('confirmError').classList.add('text-warning-red');
+                document.getElementById('newCredentialsFields').classList.add('hidden');
+                document.getElementById('confirmCredentialsBtn').classList.remove('hidden');
+                document.getElementById('oldUsername').value = '';
+                document.getElementById('oldPassword').value = '';
+                document.getElementById('oldUsername').disabled = false;
+                document.getElementById('oldPassword').disabled = false;
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+            }
+
+            function confirmOldCredentials() {
+                const oldUsername = document.getElementById('oldUsername').value;
+                const oldPassword = document.getElementById('oldPassword').value;
+                const errorDisplay = document.getElementById('confirmError');
+                errorDisplay.classList.add('hidden');
+
+                if (oldUsername === window.userState.data.username && oldPassword === window.userState.data.password) {
+                    document.getElementById('newCredentialsFields').classList.remove('hidden');
+                    document.getElementById('confirmCredentialsBtn').classList.add('hidden');
+                    document.getElementById('oldUsername').disabled = true;
+                    document.getElementById('oldPassword').disabled = true;
+                    errorDisplay.textContent = "Confirmed. Enter new details below.";
+                    errorDisplay.classList.remove('hidden');
+                    errorDisplay.classList.remove('text-warning-red');
+                    errorDisplay.classList.add('text-success-green');
+                } else {
+                    errorDisplay.textContent = "Error: Username or password does not match with the profile.";
+                    errorDisplay.classList.remove('hidden');
+                    errorDisplay.classList.remove('text-success-green');
+                    errorDisplay.classList.add('text-warning-red');
+                }
+            }
+
+            function saveNewCredentials() {
+                const newUsername = document.getElementById('newUsername').value;
+                const newPassword = document.getElementById('newPassword').value;
+
+                if (!newUsername || !newPassword) {
+                    alertMessage("New username and password cannot be empty.", 'warning-red');
+                    return;
+                }
+
+                const success = updateProfile({ 
+                    username: newUsername, 
+                    password: newPassword 
+                });
+                
+                if (success) {
+                    alertMessage("Credentials successfully updated! Returning to home.", 'success-green');
+                    showView('homeView');
+                } else {
+                    alertMessage("Error saving new credentials.", 'warning-red');
+                }
+            }
+
+            function toggleReminders(checked) {
+                if (!isUserAuthenticated()) {
+                    showAuthModal();
+                    document.getElementById('reminderToggle').checked = false; // reset toggle if failed
+                    return;
+                }
+                updateProfile({ remindersEnabled: checked });
+                alertMessage(`Reminders ${checked ? 'enabled' : 'disabled'}.`, 'secondary-sage');
+            }
+
+
+            // --- UTILITIES (Alerts and Renders) ---
+
+            function alertMessage(message, colorClass) {
+                const alertContainer = document.createElement('div');
+                alertContainer.className = `fixed top-4 right-4 z-[150] p-4 rounded-lg shadow-xl text-white font-semibold transform translate-y-0 transition-transform duration-500 bg-${colorClass}`;
+                alertContainer.textContent = message;
+                document.body.appendChild(alertContainer);
+                setTimeout(() => {
+                    alertContainer.classList.add('translate-y-[-100%]');
+                    alertContainer.classList.remove('translate-y-0');
+                    alertContainer.addEventListener('transitionend', () => alertContainer.remove());
+                }, 4000);
+            }
+
+            function renderAllPosesByDifficulty(filter = '') {
+                const listContainer = document.getElementById('asanaList');
+                listContainer.innerHTML = '';
+                const lowerCaseFilter = filter.toLowerCase();
+
+                const sortedAsanas = [...asanas].sort((a, b) => a.name.localeCompare(b.name));
+                const groupedAsanas = sortedAsanas.reduce((acc, pose) => {
+                    const matchesFilter = pose.name.toLowerCase().includes(lowerCaseFilter) || 
+                                          pose.sanskrit.toLowerCase().includes(lowerCaseFilter);
+                    if (matchesFilter) {
+                        acc[pose.difficulty] = acc[pose.difficulty] || [];
+                        acc[pose.difficulty].push(pose);
+                    }
+                    return acc;
+                }, {});
+
+                difficultyOrder.forEach(difficulty => {
+                    const poses = groupedAsanas[difficulty];
+                    if (!poses || poses.length === 0) return;
+
+                    const header = document.createElement('h4');
+                    header.className = `text-lg font-extrabold p-2 mt-4 rounded-t-lg text-white text-center 
+                                        ${['HARD', 'HARDER', 'HARDEST'].includes(difficulty) ? 'bg-warning-red' : 'bg-secondary-sage'}`;
+                    header.textContent = `${difficulty} POSES (${poses.length})`;
+                    listContainer.appendChild(header);
+
+                    poses.forEach(asana => {
+                        const item = document.createElement('div');
+                        const isChallenging = ['HARD', 'HARDER', 'HARDEST'].includes(asana.difficulty);
+                        item.className = `p-3 border-b border-red-100 last:border-b-0 cursor-pointer transition duration-150 rounded-md
+                                         ${isChallenging ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-primary-mint'}`;
+                        item.setAttribute('data-asana-name', asana.name);
+
+                        const difficultyColor = isChallenging ? 'text-warning-red font-bold' : 'text-secondary-sage font-medium';
+                        
+                        item.innerHTML = `
+                            <p class="font-semibold text-deep-charcoal">${asana.sanskrit}</p>
+                            <p class="text-xs italic text-deep-charcoal/70">${asana.name}</p>
+                            <p class="text-xs ${difficultyColor} mt-1">Difficulty: ${asana.difficulty}</p>
+                        `;
+                        listContainer.appendChild(item);
+                    });
+                });
+            }
+
+            // Function to show the pose details modal (Re-used and simplified)
+            function showPoseModal(asana) {
+                const poseDetailModal = document.getElementById('poseDetailModal');
+                const isChallenging = ['HARD', 'HARDER', 'HARDEST'].includes(asana.difficulty);
+                
+                document.getElementById('modalTitle').textContent = `${asana.name}`;
+                document.getElementById('modalSanskrit').textContent = asana.sanskrit;
+                
+                const diffColor = isChallenging ? 'text-warning-red' : 'text-secondary-sage';
+                document.getElementById('modalDifficulty').className = `text-sm font-semibold mb-4 ${diffColor}`;
+                document.getElementById('modalDifficulty').textContent = `DIFFICULTY: ${asana.difficulty}`;
+
+                const imageColor = isChallenging ? 'B91C1C' : '99D5C9';
+                const imageText = `${asana.name.replace(/\s/g, '+')}`;
+                document.getElementById('modalImage').src = `https://placehold.co/600x160/FEE2F2/${imageColor}?text=${imageText}`;
+
+                document.getElementById('modalBenefits').textContent = asana.benefits;
+
+                const modalStepsList = document.getElementById('modalStepsList');
+                modalStepsList.innerHTML = '';
+                (asana.steps || []).forEach((step, index) => {
+                    const li = document.createElement('li');
+                    li.className = isChallenging ? 'font-medium text-warning-red' : 'text-deep-charcoal/80';
+                    li.innerHTML = `<span class="font-semibold">${index + 1}.</span> ${step}`;
+                    modalStepsList.appendChild(li);
+                });
+
+                poseDetailModal.classList.remove('opacity-0', 'pointer-events-none');
+                poseDetailModal.querySelector('div').classList.remove('scale-95');
+            }
+            
+            function hidePoseModal() {
+                const poseDetailModal = document.getElementById('poseDetailModal');
+                poseDetailModal.classList.add('opacity-0');
+                poseDetailModal.querySelector('div').classList.add('scale-95');
+                setTimeout(() => poseDetailModal.classList.add('pointer-events-none'), 300);
+            }
+            
+            function showChallengingWarningModal() {
+                const challengingModal = document.getElementById('challengingWarningModal');
+                challengingModal.classList.remove('opacity-0', 'pointer-events-none');
+                challengingModal.querySelector('div').classList.remove('scale-95');
+            }
+
+
+            // --- APP INITIALIZATION (Runs after simulated load) ---
+
+            async function initApp() {
+                 // Wait for the local load profile promise to resolve (which is near-instant, but ensures state is loaded)
+                await loadProfilePromise;
+
+                // Hide Loading Screen and Show Main App
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex'; 
+                
+                // Update UI based on loaded profile (Guest or Registered)
+                updateUIBasedOnUserState();
+
+                // 2. Challenging Poses Warning Modal Acknowledge Logic
+                document.getElementById('challengingAcknowledgeBtn').addEventListener('click', () => {
+                    hasAcknowledgedChallenging = true;
+                    const challengingModal = document.getElementById('challengingWarningModal');
+                    challengingModal.classList.add('opacity-0');
+                    challengingModal.querySelector('div').classList.add('scale-95');
+                    setTimeout(() => challengingModal.classList.add('pointer-events-none'), 300); 
+                });
+
+                // 3. Pose Detail Modal Close Listener
+                document.getElementById('closePoseModalBtn').addEventListener('click', hidePoseModal);
+                document.getElementById('poseDetailModal').addEventListener('click', (e) => {
+                    if (e.target.id === 'poseDetailModal') { hidePoseModal(); }
+                });
+
+                // 4. Initial Pose List Render
+                renderAllPosesByDifficulty();
+
+                // 5. Setup search listener
+                document.getElementById('poseSearch').addEventListener('input', (e) => {
+                    renderAllPosesByDifficulty(e.target.value);
+                });
+
+                // 6. Setup click listener for the consolidated asana list
+                document.getElementById('asanaList').addEventListener('click', (e) => {
+                    let target = e.target;
+                    while (target && !target.hasAttribute('data-asana-name')) { target = target.parentElement; }
+                    
+                    if (target && target.hasAttribute('data-asana-name')) {
+                        const asanaName = target.getAttribute('data-asana-name');
+                        const asana = asanas.find(a => a.name === asanaName);
+
+                        if (asana) {
+                            const isChallenging = ['HARD', 'HARDER', 'HARDEST'].includes(asana.difficulty);
+                            
+                            // Any easy pose click prompts authentication for streak tracking
+                            if (asana.difficulty === 'EASY' && !isUserAuthenticated()) {
+                                showAuthModal();
+                                return;
+                            }
+                            
+                            if (isChallenging && !hasAcknowledgedChallenging) {
+                                showChallengingWarningModal();
+                            }
+                            showPoseModal(asana);
+                        }
+                    }
+                });
+            }
+
+            // --- WINDOW ONLOAD SETUP (Handles Disclaimer and Loading) ---
+            window.onload = function() {
+                // 1. Initial Disclaimer Modal Logic
+                const modal = document.getElementById('disclaimerModal');
+                const loadingScreen = document.getElementById('loadingScreen');
+                const appContainer = document.getElementById('appContainer');
+
+                // Hide app container initially
+                appContainer.style.display = 'none';
+                
+                // Show Loading Screen for a brief moment before the Disclaimer
+                loadingScreen.style.display = 'flex';
+                
+                setTimeout(() => {
+                    // Hide loading screen, show disclaimer
+                    loadingScreen.style.display = 'none';
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    modal.querySelector('div').classList.remove('scale-95');
+                }, 500); // Wait 0.5s for initial loading animation
+
+                // Acknowledge listener is outside initApp since it handles the transition *into* the app
+                document.getElementById('acknowledgeBtn').addEventListener('click', () => {
+                    modal.classList.add('opacity-0');
+                    modal.querySelector('div').classList.add('scale-95');
+                    setTimeout(() => {
+                        modal.classList.add('pointer-events-none');
+                        // After disclaimer, show loading again briefly, then initialize app
+                        loadingScreen.style.display = 'flex';
+                        setTimeout(initApp, 1000); // Simulate 1s of initialization
+                    }, 300);
+                });
+            };
+        </script>
+    </div>
+</body>
+</html>
