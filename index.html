@@ -63,7 +63,7 @@
 
         window.userState = {
             data: {
-                username: 'Guest',
+                username: 'Guest User',
                 password: '', 
                 streakCount: 0,
                 lastCompletionDate: null,
@@ -76,7 +76,7 @@
 
         function isUserAuthenticated() {
             // A user is considered authenticated if they have a saved username (not 'Guest') and a password.
-            return window.userState.data.username !== 'Guest' && window.userState.data.password !== '';
+            return window.userState.data.username !== 'Guest User' && window.userState.data.password !== '';
         }
 
         // Helper to update UI elements based on current user state
@@ -89,7 +89,7 @@
             const currentUsernameSpan = document.getElementById('currentUsername');
 
             if (currentUsernameSpan) {
-                 currentUsernameSpan.textContent = window.userState.data.username || 'Guest';
+                 currentUsernameSpan.textContent = window.userState.data.username || 'Guest User';
             }
 
             if (!profileBtn) return; // Ensure elements exist
@@ -105,7 +105,7 @@
                 signUpText.classList.add('hidden');
                 profileBtn.classList.add('rounded-full', 'bg-deep-charcoal', 'hover:bg-secondary-sage', 'p-2');
             } else {
-                // Guest: Hide streak, show "Sign Up" text on button
+                // Guest User: Hide streak, show "Sign Up" text on button
                 document.getElementById('streakDisplay').classList.add('hidden');
                 profileIcon.classList.add('hidden');
                 signUpText.classList.remove('hidden');
@@ -138,7 +138,7 @@
                 }
             } catch (error) {
                 console.error("Error loading profile from localStorage:", error);
-                // If corrupted, reset to default guest profile
+                // If corrupted, reset to default Guest User profile
                 localStorage.removeItem(STORAGE_KEY);
             }
             window.userState.isReady = true;
@@ -301,7 +301,7 @@
             <!-- 1. HOME VIEW (Default Pose List) -->
             <div id="homeView" class="max-w-4xl mx-auto">
                 <header class="text-center mb-10">
-                    <h1 class="text-4xl font-extrabold text-deep-charcoal mb-2">Welcome, <span id="currentUsername">Guest</span>!</h1>
+                    <h1 class="text-4xl font-extrabold text-deep-charcoal mb-2">Welcome, <span id="currentUsername">Guest User</span>!</h1>
                     <p class="text-lg text-deep-charcoal/80">Select a pose or start your daily routine.</p>
                 </header>
                 
