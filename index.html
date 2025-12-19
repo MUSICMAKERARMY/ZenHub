@@ -10,13 +10,13 @@
             theme: {
                 extend: {
                     colors: {
-                        'primary-mint': '#E0F2F1', // Light mint/teal for background
-                        'secondary-sage': '#99D5C9', // Muted sage/green for accents
-                        'deep-charcoal': '#1C2E4A', // Deep blue-gray for text
-                        'soft-peach': '#FFEDD5', // Soft neutral for highlights
-                        'warning-red': '#B91C1C', // Strong red for warnings
-                        'danger-light': '#FEE2E2', // Light red for section backgrounds
-                        'success-green': '#10B981', // Green for success states
+                        'primary-mint': '#F0FDF9',
+                        'secondary-sage': '#14B8A6',
+                        'deep-charcoal': '#0F172A',
+                        'soft-peach': '#FFF7ED',
+                        'warning-red': '#DC2626',
+                        'danger-light': '#FEF2F2',
+                        'success-green': '#22C55E',
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
@@ -27,34 +27,107 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
-        /* Custom scrollbar for better aesthetics */
-        .yoga-list-container::-webkit-scrollbar { width: 8px; }
-        .yoga-list-container::-webkit-scrollbar-thumb { background-color: #99D5C9; border-radius: 4px; }
-        .yoga-list-container::-webkit-scrollbar-track { background-color: #E0F2F1; }
-        #poseSearch:focus { outline: none; border-color: #99D5C9; box-shadow: 0 0 0 3px rgba(153, 213, 201, 0.5); }
+        * { box-sizing: border-box; }
         
-        /* Utility to hide/show views */
+        body {
+            background: linear-gradient(135deg, #F0FDF9 0%, #CCFBF1 50%, #E0F2FE 100%);
+            background-attachment: fixed;
+        }
+
+        /* Custom scrollbar */
+        .yoga-list-container::-webkit-scrollbar { width: 6px; }
+        .yoga-list-container::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #14B8A6, #0D9488); border-radius: 10px; }
+        .yoga-list-container::-webkit-scrollbar-track { background: transparent; }
+        
+        #poseSearch:focus { outline: none; border-color: #14B8A6; box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.15); }
+        
         .hidden-view { display: none !important; }
 
-        /* Animation for Streak Bar */
-        .streak-fill {
-            transition: width 0.5s ease-in-out;
-        }
+        .streak-fill { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
 
-        /* Tour Overlay Styles */
         .highlighted {
-            z-index: 1001; /* Ensure target is above overlay */
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7); /* Creates the dark background except around the element */
+            z-index: 1001;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
             position: relative;
         }
+
+        /* Glass morphism effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Modern card style */
+        .card-modern {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        /* Button hover glow */
+        .btn-glow {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-glow:hover {
+            box-shadow: 0 10px 40px -10px rgba(20, 184, 166, 0.5);
+            transform: translateY(-2px);
+        }
+
+        /* Smooth transitions */
+        .smooth-all {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #14B8A6 0%, #0EA5E9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Modern input style */
+        input[type="text"], input[type="password"], input[type="number"] {
+            transition: all 0.2s ease;
+        }
+
+        /* Pulse animation for loading */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(20, 184, 166, 0.4); }
+            50% { box-shadow: 0 0 40px rgba(20, 184, 166, 0.8); }
+        }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+        /* Float animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .float { animation: float 3s ease-in-out infinite; }
     </style>
 </head>
 <body class="bg-primary-mint font-sans text-deep-charcoal leading-relaxed min-h-screen">
     
     <!-- Loading Screen -->
-    <div id="loadingScreen" class="fixed inset-0 z-[10000] bg-deep-charcoal flex flex-col items-center justify-center p-4">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-secondary-sage"></div>
-        <p class="mt-4 text-xl font-semibold text-primary-mint">Flowing In...</p>
+    <div id="loadingScreen" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center p-4" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);">
+        <div class="float">
+            <div class="h-20 w-20 rounded-2xl bg-gradient-to-br from-secondary-sage to-teal-400 flex items-center justify-center pulse-glow">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+            </div>
+        </div>
+        <p class="mt-6 text-2xl font-bold text-white tracking-wide">Zen Flow</p>
+        <p class="mt-2 text-sm text-gray-400">Preparing your wellness journey...</p>
     </div>
 
     <!-- State Management (Replaced Firebase with LocalStorage) -->
@@ -67,10 +140,48 @@
                 password: '', 
                 streakCount: 0,
                 lastCompletionDate: null,
-                remindersEnabled: false
+                remindersEnabled: false,
+                leagueIndex: 0,
+                tasksCompleted: 0,
+                totalTasksCompleted: 0
             },
             isReady: false
         };
+
+        const FITNESS_LEAGUES = [
+            { name: "Starter League", emoji: "🌱", color: "#9CA3AF" },
+            { name: "Bronze League", emoji: "🥉", color: "#CD7F32" },
+            { name: "Iron League", emoji: "⚔️", color: "#6B7280" },
+            { name: "Steel League", emoji: "🛡️", color: "#71717A" },
+            { name: "Titan League", emoji: "⚡", color: "#4B5563" },
+            { name: "Silver League", emoji: "🥈", color: "#C0C0C0" },
+            { name: "Platinum League", emoji: "💎", color: "#E5E4E2" },
+            { name: "Diamond League", emoji: "💠", color: "#B9F2FF" },
+            { name: "Sapphire League", emoji: "🔵", color: "#0F52BA" },
+            { name: "Emerald League", emoji: "💚", color: "#50C878" },
+            { name: "Ruby League", emoji: "❤️", color: "#E0115F" },
+            { name: "Topaz League", emoji: "🧡", color: "#FFC87C" },
+            { name: "Amethyst League", emoji: "💜", color: "#9966CC" },
+            { name: "Obsidian League", emoji: "🖤", color: "#1C1C1C" },
+            { name: "Onyx League", emoji: "⬛", color: "#353935" },
+            { name: "Quartz League", emoji: "🤍", color: "#F5F5F5" },
+            { name: "Crystal League", emoji: "✨", color: "#A7D8DE" },
+            { name: "Meteor League", emoji: "☄️", color: "#FF6B35" },
+            { name: "Galaxy League", emoji: "🌌", color: "#2E1A47" },
+            { name: "Cosmos League", emoji: "🌍", color: "#1A1A2E" },
+            { name: "Solar League", emoji: "☀️", color: "#FFD700" },
+            { name: "Lunar League", emoji: "🌙", color: "#C0C0C0" },
+            { name: "Stellar League", emoji: "⭐", color: "#FFE135" },
+            { name: "Nova League", emoji: "💫", color: "#FF6F61" },
+            { name: "Supernova League", emoji: "🌟", color: "#FF4500" },
+            { name: "Hypernova League", emoji: "🔥", color: "#FF0000" },
+            { name: "Legend League", emoji: "🏅", color: "#DAA520" },
+            { name: "Mythic League", emoji: "🦄", color: "#9B59B6" },
+            { name: "Immortal League", emoji: "👑", color: "#FFD700" },
+            { name: "Olympus League", emoji: "🏆", color: "#FFD700" }
+        ];
+
+        const TASKS_PER_LEAGUE = 10;
 
         // --- AUTHENTICATION/UI HELPERS (Moved up for scope fix) ---
 
@@ -124,6 +235,108 @@
             }
             
             if (reminderToggle) reminderToggle.checked = window.userState.data.remindersEnabled;
+
+            updateLeagueUI();
+        }
+
+        function updateLeagueUI() {
+            const leagueIndex = window.userState.data.leagueIndex || 0;
+            const tasksCompleted = window.userState.data.tasksCompleted || 0;
+            const currentLeague = FITNESS_LEAGUES[leagueIndex];
+            const nextLeague = FITNESS_LEAGUES[leagueIndex + 1];
+
+            const leagueDisplay = document.getElementById('leagueDisplay');
+            const currentLeagueEmoji = document.getElementById('currentLeagueEmoji');
+            const currentLeagueName = document.getElementById('currentLeagueName');
+            const leagueTaskCount = document.getElementById('leagueTaskCount');
+            const leagueProgressBar = document.getElementById('leagueProgressBar');
+            const leagueNumber = document.getElementById('leagueNumber');
+            const nextLeagueText = document.getElementById('nextLeagueText');
+
+            if (leagueDisplay && isUserAuthenticated()) {
+                leagueDisplay.classList.remove('hidden');
+                leagueDisplay.textContent = `${currentLeague.emoji} ${currentLeague.name.replace(' League', '')}`;
+                leagueDisplay.style.backgroundColor = currentLeague.color + '30';
+                leagueDisplay.style.color = currentLeague.color === '#F5F5F5' || currentLeague.color === '#FFD700' ? '#1C2E4A' : currentLeague.color;
+            }
+
+            if (currentLeagueEmoji) currentLeagueEmoji.textContent = currentLeague.emoji;
+            if (currentLeagueName) currentLeagueName.textContent = currentLeague.name;
+            if (leagueTaskCount) leagueTaskCount.textContent = `${tasksCompleted}/${TASKS_PER_LEAGUE}`;
+            if (leagueProgressBar) {
+                const progressPercent = (tasksCompleted / TASKS_PER_LEAGUE) * 100;
+                leagueProgressBar.style.width = `${progressPercent}%`;
+                leagueProgressBar.style.backgroundColor = currentLeague.color;
+            }
+            if (leagueNumber) leagueNumber.textContent = leagueIndex + 1;
+            if (nextLeagueText) {
+                if (nextLeague) {
+                    nextLeagueText.textContent = `Next: ${nextLeague.name} ${nextLeague.emoji}`;
+                } else {
+                    nextLeagueText.textContent = '🏆 You are a Fitness Champion!';
+                }
+            }
+
+            const profileLeagueEmoji = document.getElementById('profileLeagueEmoji');
+            const profileLeagueName = document.getElementById('profileLeagueName');
+            const profileLeagueBar = document.getElementById('profileLeagueBar');
+            const profileTasksCompleted = document.getElementById('profileTasksCompleted');
+            const profileTotalTasks = document.getElementById('profileTotalTasks');
+            const profileLeagueNumber = document.getElementById('profileLeagueNumber');
+
+            if (profileLeagueEmoji) profileLeagueEmoji.textContent = currentLeague.emoji;
+            if (profileLeagueName) profileLeagueName.textContent = currentLeague.name;
+            if (profileLeagueBar) {
+                const progressPercent = (tasksCompleted / TASKS_PER_LEAGUE) * 100;
+                profileLeagueBar.style.width = `${progressPercent}%`;
+                profileLeagueBar.style.backgroundColor = currentLeague.color;
+            }
+            if (profileTasksCompleted) profileTasksCompleted.textContent = tasksCompleted;
+            if (profileTotalTasks) profileTotalTasks.textContent = window.userState.data.totalTasksCompleted || 0;
+            if (profileLeagueNumber) profileLeagueNumber.textContent = leagueIndex + 1;
+        }
+
+        function advanceLeague() {
+            let leagueIndex = window.userState.data.leagueIndex || 0;
+            let tasksCompleted = (window.userState.data.tasksCompleted || 0) + 1;
+            let totalTasksCompleted = (window.userState.data.totalTasksCompleted || 0) + 1;
+            let promoted = false;
+
+            if (tasksCompleted >= TASKS_PER_LEAGUE && leagueIndex < FITNESS_LEAGUES.length - 1) {
+                leagueIndex++;
+                tasksCompleted = 0;
+                promoted = true;
+            }
+
+            updateProfile({
+                leagueIndex: leagueIndex,
+                tasksCompleted: tasksCompleted,
+                totalTasksCompleted: totalTasksCompleted
+            });
+
+            if (promoted) {
+                const newLeague = FITNESS_LEAGUES[leagueIndex];
+                showLeaguePromotion(newLeague);
+            }
+
+            return promoted;
+        }
+
+        function showLeaguePromotion(league) {
+            const promoDiv = document.createElement('div');
+            promoDiv.className = 'fixed inset-0 z-[200] bg-deep-charcoal bg-opacity-90 flex items-center justify-center p-4';
+            promoDiv.innerHTML = `
+                <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full text-center transform scale-100 animate-bounce">
+                    <div class="text-6xl mb-4">${league.emoji}</div>
+                    <h2 class="text-3xl font-extrabold mb-2" style="color: ${league.color}">PROMOTED!</h2>
+                    <p class="text-xl font-bold text-deep-charcoal mb-4">Welcome to ${league.name}!</p>
+                    <p class="text-gray-600 mb-6">Keep up the amazing work! Complete 10 more tasks to reach the next level.</p>
+                    <button onclick="this.parentElement.parentElement.remove()" class="px-6 py-3 bg-secondary-sage text-white font-bold rounded-lg hover:bg-opacity-80 transition">
+                        Continue Training
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(promoDiv);
         }
 
         // --- CORE LOAD/SAVE LOGIC ---
@@ -176,14 +389,19 @@
     
     <!-- Modals (Disclaimer, Warning, Auth, Notification, Pose Detail) -->
     <!-- All modals use max-w-lg or max-w-sm and w-full for responsiveness -->
-    <div id="disclaimerModal" class="fixed inset-0 z-[100] bg-deep-charcoal bg-opacity-95 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
-        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full transform scale-95 transition-transform duration-300">
-            <h2 class="text-3xl font-bold mb-4 text-secondary-sage border-b-2 border-secondary-sage/50 pb-2">User Liability Notice</h2>
-            <p class="mb-6 text-deep-charcoal/80 text-base">
-                Please consult a healthcare professional. Participation is at your own risk.
+    <div id="disclaimerModal" class="fixed inset-0 z-[100] bg-deep-charcoal/90 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="card-modern p-8 max-w-lg w-full transform scale-95 transition-all duration-300">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary-sage to-teal-400 flex items-center justify-center mb-4">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-3 text-deep-charcoal">Before You Begin</h2>
+            <p class="mb-6 text-gray-600 text-base leading-relaxed">
+                Please consult a healthcare professional before starting any exercise routine. Your participation is at your own risk.
             </p>
-            <button id="acknowledgeBtn" class="w-full py-3 bg-secondary-sage text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition duration-300 transform hover:scale-[1.01]">
-                I Acknowledge and Proceed
+            <button id="acknowledgeBtn" class="w-full py-3.5 bg-gradient-to-r from-secondary-sage to-teal-500 text-white font-semibold rounded-xl shadow-lg btn-glow">
+                I Understand, Let's Go
             </button>
         </div>
     </div>
@@ -201,20 +419,24 @@
     </div>
 
     <!-- Authentication/Streak Setup Modal -->
-    <div id="authModal" class="fixed inset-0 z-[120] bg-deep-charcoal bg-opacity-80 flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-95 transition-transform duration-300">
-            <h3 class="text-2xl font-bold mb-4 text-secondary-sage text-center">Start Your Streak!</h3>
-            <p class="text-sm text-center text-deep-charcoal/70 mb-4">Create an account to track your progress and keep your daily streak alive.</p>
+    <div id="authModal" class="fixed inset-0 z-[120] bg-deep-charcoal/80 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="card-modern p-6 max-w-sm w-full transform scale-95 transition-all duration-300">
+            <div class="text-center mb-5">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-secondary-sage to-teal-400 flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-deep-charcoal">Start Your Journey</h3>
+                <p class="text-sm text-gray-500 mt-1">Create an account to track your progress</p>
+            </div>
             
             <form id="authForm" class="space-y-4">
-                <input type="text" id="authUsername" placeholder="Enter Username" required class="w-full p-3 rounded-lg border-2 border-secondary-sage/50 focus:border-secondary-sage">
-                <input type="password" id="authPassword" placeholder="Enter Password" required class="w-full p-3 rounded-lg border-2 border-secondary-sage/50 focus:border-secondary-sage">
+                <input type="text" id="authUsername" placeholder="Username" required class="w-full p-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-secondary-sage text-sm">
+                <input type="password" id="authPassword" placeholder="Password" required class="w-full p-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-secondary-sage text-sm">
                 <p id="authError" class="text-warning-red text-sm hidden"></p>
-                <p class="text-xs text-center font-medium text-deep-charcoal/80 mt-2">
-                    Tip: Keeping your daily routine formal helps establish consistency!
-                </p>
-                <button type="submit" class="w-full py-3 bg-secondary-sage text-white font-semibold rounded-lg shadow-md hover:bg-opacity-80 transition">
-                    Sign Up & Submit Profile
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-secondary-sage to-teal-500 text-white font-semibold rounded-xl shadow-lg btn-glow text-sm">
+                    Create Account
                 </button>
             </form>
         </div>
@@ -273,18 +495,18 @@
     <div id="appContainer" style="display: none;" class="min-h-screen flex flex-col">
         
         <!-- Navigation Bar -->
-        <nav id="mainNav" class="sticky top-0 z-50 bg-white bg-opacity-95 shadow-lg backdrop-blur-sm">
+        <nav id="mainNav" class="sticky top-0 z-50 glass shadow-lg">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
-                    <a href="#" onclick="showView('homeView')" class="text-2xl font-extrabold text-secondary-sage tracking-wider">Zen Flow</a>
-                    <div class="flex space-x-2 md:space-x-4 items-center" id="navActions">
-                        <span id="streakDisplay" class="text-lg font-bold text-warning-red bg-danger-light py-1 px-3 rounded-full hidden">🔥 0 Days</span>
+                    <a href="#" onclick="showView('homeView')" class="text-2xl font-extrabold gradient-text tracking-tight">Zen Flow</a>
+                    <div class="flex space-x-2 md:space-x-3 items-center" id="navActions">
+                        <span id="leagueDisplay" class="text-xs font-bold py-1.5 px-3 rounded-full hidden shadow-sm" style="background-color: #E5E7EB;">🌱 Starter</span>
+                        <span id="streakDisplay" class="text-sm font-bold text-warning-red bg-red-50 py-1.5 px-3 rounded-full hidden shadow-sm border border-red-100">🔥 0 Days</span>
                         
                         <!-- Profile/Sign Up Button - DYNAMIC CONTENT -->
-                        <button id="profileBtn" onclick="handleProfileClick()" class="p-2 rounded-full bg-deep-charcoal text-white hover:bg-secondary-sage transition duration-150 transform hover:scale-110 flex items-center">
+                        <button id="profileBtn" onclick="handleProfileClick()" class="p-2.5 rounded-xl bg-gradient-to-r from-deep-charcoal to-slate-700 text-white hover:from-secondary-sage hover:to-teal-600 smooth-all transform hover:scale-105 flex items-center shadow-lg">
                             <span id="profileIcon">
-                                <!-- User Icon SVG -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
                             </span>
@@ -305,35 +527,82 @@
                     <p class="text-lg text-deep-charcoal/80">Select a pose or start your daily routine.</p>
                 </header>
                 
+                <!-- Fitness Leagues Progress Section -->
+                <section id="leagueSection" class="mb-8 p-6 rounded-2xl shadow-xl text-white overflow-hidden relative" style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%);">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-secondary-sage/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                    <div class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-teal-500/10 to-transparent rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                    
+                    <div class="relative flex items-center justify-between mb-5">
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Current League</p>
+                            <h2 class="text-2xl font-bold flex items-center gap-2">
+                                <span id="currentLeagueEmoji" class="text-3xl">🌱</span>
+                                <span id="currentLeagueName">Starter League</span>
+                            </h2>
+                        </div>
+                        <div class="text-right bg-white/10 rounded-xl px-4 py-2 backdrop-blur">
+                            <p class="text-3xl font-extrabold" id="leagueTaskCount">0/10</p>
+                            <p class="text-xs text-gray-400">Tasks Done</p>
+                        </div>
+                    </div>
+                    <div class="relative w-full bg-white/10 rounded-full h-3 mb-3 overflow-hidden">
+                        <div id="leagueProgressBar" class="h-3 rounded-full transition-all duration-500 relative" style="width: 0%; background: linear-gradient(90deg, #14B8A6, #0EA5E9);">
+                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                        </div>
+                    </div>
+                    <div class="relative flex justify-between text-xs text-gray-400">
+                        <span>League <span id="leagueNumber" class="text-white font-semibold">1</span> of 30</span>
+                        <span id="nextLeagueText" class="text-teal-300">Next: Bronze League 🥉</span>
+                    </div>
+                </section>
+
                 <!-- New Routine Start Button for Tour -->
-                <section class="mb-8 p-6 bg-secondary-sage/20 rounded-xl shadow-lg border border-secondary-sage/50 text-center">
-                    <h2 class="text-2xl font-bold text-deep-charcoal mb-3">Ready to Begin?</h2>
-                    <p class="text-deep-charcoal/80 mb-4">Start your daily session now to build a lasting habit and maintain your streak.</p>
-                    <button onclick="showView('routineSetupView')" id="startRoutineButton" class="px-8 py-3 bg-secondary-sage text-white font-extrabold rounded-full shadow-lg hover:bg-secondary-sage/80 transition transform hover:scale-[1.02]">
-                        Start Daily Routine
+                <section class="mb-8 p-8 card-modern text-center relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary-sage via-teal-400 to-cyan-400"></div>
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-secondary-sage/10 to-teal-100 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-secondary-sage" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-deep-charcoal mb-2">Ready to Flow?</h2>
+                    <p class="text-gray-500 mb-6 max-w-md mx-auto">Start your daily session to build lasting habits and keep your streak alive.</p>
+                    <button onclick="showView('routineSetupView')" id="startRoutineButton" class="px-8 py-3.5 bg-gradient-to-r from-secondary-sage to-teal-500 text-white font-bold rounded-xl shadow-lg btn-glow inline-flex items-center gap-2">
+                        <span>Start Daily Routine</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                        </svg>
                     </button>
                 </section>
 
 
-                <section id="yoga" class="bg-danger-light p-4 sm:p-8 rounded-2xl shadow-2xl border-4 border-secondary-sage">
-                    <h2 class="text-3xl font-extrabold mb-6 text-center text-secondary-sage pb-2 inline-block mx-auto border-b-4 border-secondary-sage/50">
-                        YOGA POSES: EASY TO HARDEST
-                    </h2>
+                <section id="yoga" class="card-modern p-6 sm:p-8 overflow-hidden">
+                    <div class="text-center mb-6">
+                        <span class="inline-block px-3 py-1 bg-secondary-sage/10 text-secondary-sage text-xs font-semibold rounded-full mb-3">POSE LIBRARY</span>
+                        <h2 class="text-2xl font-bold text-deep-charcoal">Explore Yoga Poses</h2>
+                        <p class="text-gray-500 text-sm mt-1">From beginner to advanced</p>
+                    </div>
                     
-                    <div class="mb-6 max-w-lg mx-auto">
-                        <input type="text" id="poseSearch" placeholder="Search any pose (e.g., Cobra, Headstand)" 
-                            class="w-full p-3 rounded-lg border-2 border-secondary-sage/50 transition duration-300 focus:ring-secondary-sage focus:border-secondary-sage text-deep-charcoal">
+                    <div class="mb-6 max-w-lg mx-auto relative">
+                        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <input type="text" id="poseSearch" placeholder="Search poses..." 
+                            class="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white text-sm text-deep-charcoal">
                     </div>
 
-                    <div id="asanaList" class="yoga-list-container h-[50vh] overflow-y-scroll bg-white p-4 rounded-xl shadow-inner space-y-2 border-t-4 border-secondary-sage">
+                    <div id="asanaList" class="yoga-list-container h-[50vh] overflow-y-scroll bg-gradient-to-b from-gray-50 to-white p-4 rounded-xl space-y-2">
                         <!-- Poses inserted by JavaScript -->
                     </div>
                 </section>
             </div>
 
             <!-- 2. ROUTINE SETUP VIEW (unchanged) -->
-            <div id="routineSetupView" class="hidden-view max-w-xl mx-auto bg-white p-6 rounded-xl shadow-2xl border-4 border-secondary-sage">
-                <h2 class="text-3xl font-bold mb-6 text-center text-secondary-sage">Design Your Daily Routine</h2>
+            <div id="routineSetupView" class="hidden-view max-w-xl mx-auto card-modern p-6 sm:p-8">
+                <div class="text-center mb-6">
+                    <span class="inline-block px-3 py-1 bg-secondary-sage/10 text-secondary-sage text-xs font-semibold rounded-full mb-3">SETUP</span>
+                    <h2 class="text-2xl font-bold text-deep-charcoal">Design Your Routine</h2>
+                </div>
 
                 <div class="space-y-6">
                     <!-- Timer Setup -->
@@ -352,49 +621,74 @@
                         </div>
                     </div>
 
-                    <button id="startRoutineBtn" onclick="startRoutine()" class="w-full py-3 bg-success-green text-white font-semibold rounded-lg shadow-lg hover:bg-opacity-80 transition disabled:opacity-50" disabled>
-                        Start Routine & Keep Your Daily Streak Going!
+                    <button id="startRoutineBtn" onclick="startRoutine()" class="w-full py-3.5 bg-gradient-to-r from-success-green to-emerald-500 text-white font-semibold rounded-xl shadow-lg btn-glow disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Start Routine
                     </button>
-                    <button onclick="showView('homeView')" class="w-full py-2 text-sm text-deep-charcoal/70 hover:underline transition">
-                        Cancel and Go Back
+                    <button onclick="showView('homeView')" class="w-full py-2.5 text-sm text-gray-500 hover:text-deep-charcoal smooth-all">
+                        Cancel
                     </button>
                 </div>
             </div>
 
             <!-- 3. TIMER VIEW (Active Routine) (unchanged) -->
-            <div id="timerView" class="hidden-view max-w-lg mx-auto text-center bg-white p-6 rounded-xl shadow-2xl border-4 border-warning-red">
-                <h2 class="text-3xl font-bold mb-6 text-warning-red">Routine In Progress</h2>
+            <div id="timerView" class="hidden-view max-w-lg mx-auto text-center card-modern p-6 sm:p-8 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-warning-red via-orange-400 to-yellow-400"></div>
+                <span class="inline-block px-3 py-1 bg-red-50 text-warning-red text-xs font-semibold rounded-full mb-4">IN PROGRESS</span>
+                <h2 class="text-2xl font-bold mb-6 text-deep-charcoal">Keep Going!</h2>
 
                 <!-- Timer Display -->
-                <div class="bg-deep-charcoal text-white p-4 rounded-lg mb-4">
-                    <p class="text-sm font-light">Time Remaining:</p>
-                    <h3 id="timerDisplay" class="text-5xl font-extrabold">00:00</h3>
+                <div class="bg-gradient-to-br from-deep-charcoal to-slate-700 text-white p-6 rounded-2xl mb-6 shadow-lg">
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Time Remaining</p>
+                    <h3 id="timerDisplay" class="text-6xl font-extrabold tracking-tight">00:00</h3>
                 </div>
 
                 <!-- Pose Info -->
-                <div class="border border-secondary-sage p-4 rounded-lg mb-6">
-                    <p class="text-sm font-semibold text-secondary-sage">Current Pose: <span id="currentPoseName"></span></p>
-                    <p class="text-xs text-deep-charcoal/70">Benefits: <span id="currentPoseBenefits"></span></p>
+                <div class="bg-gradient-to-r from-secondary-sage/10 to-teal-50 p-4 rounded-xl mb-6 border border-secondary-sage/20">
+                    <p class="text-sm font-semibold text-secondary-sage mb-1">Current Pose: <span id="currentPoseName" class="text-deep-charcoal"></span></p>
+                    <p class="text-xs text-gray-500">Benefits: <span id="currentPoseBenefits"></span></p>
                 </div>
 
                 <!-- Control Buttons -->
-                <div class="flex flex-col space-y-4">
-                    <button id="addTimeBtn" onclick="addTime()" class="py-2 bg-soft-peach text-deep-charcoal font-semibold rounded-lg hover:bg-soft-peach/70 transition">
-                        +1 Minute (Current: <span id="routineTimeMinutes"></span> min)
+                <div class="flex flex-col space-y-3">
+                    <button id="addTimeBtn" onclick="addTime()" class="py-3 bg-gray-100 text-deep-charcoal font-medium rounded-xl hover:bg-gray-200 smooth-all">
+                        +1 Minute (<span id="routineTimeMinutes"></span> min total)
                     </button>
-                    <button id="doneRoutineBtn" onclick="completeRoutine()" class="py-3 bg-warning-red text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 transition disabled:opacity-50" disabled>
-                        DONE (Time Must Finish)
+                    <button id="doneRoutineBtn" onclick="completeRoutine()" class="py-3.5 bg-gradient-to-r from-warning-red to-red-500 text-white font-semibold rounded-xl shadow-lg btn-glow disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Complete Routine
                     </button>
-                    <button onclick="showView('homeView')" class="w-full py-2 text-sm text-deep-charcoal/70 hover:underline transition">
-                        Cancel Routine (Streak will not update)
+                    <button onclick="showView('homeView')" class="w-full py-2.5 text-sm text-gray-500 hover:text-deep-charcoal smooth-all">
+                        Cancel
                     </button>
                 </div>
             </div>
 
             <!-- 4. PROFILE & SETTINGS VIEW (unchanged) -->
-            <div id="profileView" class="hidden-view max-w-xl mx-auto bg-white p-6 rounded-xl shadow-2xl border-4 border-deep-charcoal">
-                <h2 class="text-3xl font-bold mb-6 text-center text-deep-charcoal">My Profile</h2>
+            <div id="profileView" class="hidden-view max-w-xl mx-auto card-modern p-6 sm:p-8">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-deep-charcoal to-slate-600 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-deep-charcoal">My Profile</h2>
+                </div>
                 
+                <!-- League Progress -->
+                <div class="mb-6 border-b pb-4">
+                    <h3 class="text-xl font-semibold mb-2 flex items-center gap-2">
+                        <span id="profileLeagueEmoji">🌱</span>
+                        <span id="profileLeagueName">Starter League</span>
+                    </h3>
+                    <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                        <div id="profileLeagueBar" class="h-3 rounded-full transition-all duration-500" style="width: 0%; background-color: #9CA3AF;"></div>
+                    </div>
+                    <p class="text-sm text-deep-charcoal/70">
+                        Tasks: <span id="profileTasksCompleted">0</span>/10 | 
+                        Total: <span id="profileTotalTasks">0</span> | 
+                        League: <span id="profileLeagueNumber">1</span>/30
+                    </p>
+                </div>
+
                 <!-- Streak Bar -->
                 <div class="mb-6 border-b pb-4">
                     <h3 class="text-xl font-semibold mb-2">Daily Streak: <span id="profileStreakCount" class="text-warning-red">0</span> Days 🔥</h3>
@@ -864,6 +1158,7 @@
 
             function completeRoutine() {
                 updateStreak();
+                advanceLeague();
                 clearInterval(routineTimer);
                 showNotificationModal();
             }
